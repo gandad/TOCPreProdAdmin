@@ -1,0 +1,1 @@
+a:5:{i:0;s:9:"_Identify";i:1;s:8:"UserCode";i:2;s:8:"RoleName";s:3:"_pk";s:9:"_Identify";s:5:"_type";a:3:{s:9:"_Identify";s:7:"int(11)";s:8:"UserCode";s:11:"varchar(16)";s:8:"RoleName";s:12:"varchar(100)";}}
