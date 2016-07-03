@@ -261,7 +261,7 @@ class WBCURDMngController extends \Think\Controller {
 	  		  	
 	  	$tableName = "bnode";
 		$attArray = array("NodeCode","NodeEnabled","NodeName","NodeDesc","NodeType","NodeOrder",
-		"IsNodeCCR","IsNodeStatcs","StatcsCondtition","NNNetProcTime","NNBufferTime","NNStateUpdateFreq","StatcsWay","BelongDeptCode");
+		"IsNodeCCR","IsNodeStatcs","StartCondtition","NNNetProcTime","NNBufferTime","NNStateUpdateFreq","StatcsWay","BelongDeptCode");
 		$uniqArray = array("NodeCode");
 		$status = $this->_CURDOperation($tableName,$_POST,$attArray,$uniqArray);
 				
@@ -276,8 +276,8 @@ class WBCURDMngController extends \Think\Controller {
 	    if(stripos("insert|update|delete",$_POST['webix_operation'])===false)  return $this -> ajaxReturn("not permit");
 	  		  	
 	  	$tableName = "bpathnode";
-		$attArray = array("PathCode","NodeCode","PNPrevNodeCode","PNNextNodeCode","PNNodeLeaderCode","PNNetProcTime","PNBufferTime","PNAccNetProcTime","PNAccBufferTime","PNStateUpdateFreq"
-);
+		$attArray = array("PathCode","NodeCode","PNPrevNodeCode","PNNextNodeCode",
+		"PNNodeLeaderCode","PNNetProcTime","PNBufferTime","PNStateUpdateFreq");
 		$uniqArray = array("PathCode","NodeCode");
 		$status = $this->_CURDOperation($tableName,$_POST,$attArray,$uniqArray);
 				
@@ -328,9 +328,27 @@ class WBCURDMngController extends \Think\Controller {
 	    if(stripos("insert|update|delete",$_POST['webix_operation'])===false)  return $this -> ajaxReturn("not permit");
 	  		  	
 	  	$tableName = "bproject";
-		$attArray = array("ProjectCode","ProjectName","ProjectType","CreatePathCode","TaskObjectCode",
-		"InitDueDate","TOCDueDate","InitStartDate","TOCEndDate","ProjectEnabled");
+		$attArray = array("ProjectCode","ProjectName","ProjectType","CreatePathCode","TaskObjectCode","BufferType",
+		"InitDueDate","TOCDueDate","InitStartDate","TOCEndDate","ProjectEnabled","HeadNodeCode","TailNodeCode");
 		$uniqArray = array("ProjectCode");
+		
+		$status = $this->_CURDOperation($tableName,$_POST,$attArray,$uniqArray);
+				
+		return $this -> ajaxReturn($status);
+	  } 
+	  
+	  /* ***************操作ProjectNode***************************
+	  */ 
+	    public function saveProjectNode()
+	  {
+	    if(stripos("insert|update|delete",$_POST['webix_operation'])===false)  return $this -> ajaxReturn("not permit");
+	  		  	
+	  	$tableName = "bprojectnode";
+		$attArray = array("ProjectCode","NodeCode","PrevNodeCode","NextNodeCode","NetProcTime","BufferTime",
+								"AccNetProcTime","AccBufferTime","StateUpdateFreq","NodeState",
+								"NodeLeaderCode","NodeTensePlanFinishDate","NodeUserPlanFinishDate",
+								"NodeUserActuralFinishDate","NodeTensePlanStartDate","NodeUserActuralStartDate");
+		$uniqArray = array("ProjectCode","NodeCode");
 		
 		$status = $this->_CURDOperation($tableName,$_POST,$attArray,$uniqArray);
 				

@@ -16,6 +16,40 @@ class WBResourceMngController extends \Think\Controller {
 			return $this -> ajaxReturn($rs);
 		}
  
+ 	   /**
+	    * 获得项目部门列表
+	    */
+		public function getProjectDeptList(){
+			$rs = M("bnode","",getMyCon())
+			->join("left join bdept on BelongDeptCode=DeptCode")
+			->field("distinct DeptCode as id,DeptName as value")
+			->where("DeptEnabled=1")
+			->select();
+
+			$rs = array_reverse($rs);
+			array_push($rs,array('id'=>'all','value'=>'所有'));
+			$rs = array_reverse($rs);
+						
+			return $this -> ajaxReturn($rs);
+		}
+	
+	 	/**
+	    * 获得项目人员
+	    */
+		public function getProjectStaffList(){
+			$rs = M("bprojectnode","",getMyCon())
+			->join("left join buser on NodeLeaderCode=UserCode")
+			->field("distinct NodeLeaderCode as id,UserTrueName as value")
+			->where("NodeState!='Finished'")
+			->select();
+			
+			$rs = array_reverse($rs);
+			array_push($rs,array('id'=>'all','value'=>'所有'));
+			$rs = array_reverse($rs);
+			
+			return $this -> ajaxReturn($rs);
+		}
+			
   	   /**
 	    * 获得部门列表
 	    */
@@ -67,7 +101,7 @@ class WBResourceMngController extends \Think\Controller {
 	    */
 		public function getNodeList(){
 			if(hasInput("NodeType")) $condition['NodeType'] = getInputValue("NodeType","内部产前节点");
-			$fieldstr = "bnode._Identify,NodeEnabled,NodeCode,NodeName,NodeType,NodeDesc,NodeOrder,IsNodeCCR,IsNodeStatcs,StatcsCondition,StatcsWay,";
+			$fieldstr = "bnode._Identify,NodeEnabled,NodeCode,NodeName,NodeType,NodeDesc,NodeOrder,IsNodeCCR,IsNodeStatcs,StartCondition,StatcsWay,";
 			$fieldstr .= "NNNetProcTime,NNBufferTime,NNStateUpdateFreq,BelongDeptCode,DeptName as BelongDeptName";
 			
 			$rs = M('bnode','',getMyCon())
@@ -122,9 +156,9 @@ class WBResourceMngController extends \Think\Controller {
 			if(hasInput("PathCode")) $condition['a.PathCode'] = getInputValue("PathCode","仅绣花");
 			$fieldstr = "a._Identify,a.PathCode,PathName,PathEnabled,PathDesc,HeadNodeCode,TailNodeCode,";
 			$fieldstr .= "Remark,LeadTime,BufferType,RedLineLength,CCRCode,";
-			$fieldstr .= "a.NodeCode,NodeName,NodeType,NodeDesc,NodeOrder,IsNodeCCR,IsNodeStatcs,StatcsCondition,";
+			$fieldstr .= "a.NodeCode,NodeName,NodeType,NodeDesc,NodeOrder,IsNodeCCR,IsNodeStatcs,StatcsWay,StartCondition,";
 			$fieldstr .= "PNPrevNodeCode,PNNextNodeCode,PNNetProcTime,PNBufferTime,PNNodeLeaderCode,UserTrueName as PNNodeLeaderName,";
-			$fieldstr .= "PNAccNetProcTime,PNAccBufferTime,PNStateUpdateFreq,NodeOrder";
+			$fieldstr .= "PNStateUpdateFreq,NodeOrder";
 			
 			$rs = M('bpathnode as a','',getMyCon())
 			->join("left join bpath on a.PathCode=bpath.PathCode")
