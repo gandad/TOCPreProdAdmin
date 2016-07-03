@@ -25,10 +25,11 @@ class WBProjectMngController extends \Think\Controller {
 		public function getProjectList(){
 			if(hasInput("ProjectType")) $condition['ProjectType'] = getInputValue("ProjectType");
 			if(hasInput("PathCode")) $condition['CreatePathCode'] = getInputValue("PathCode");
+			if(hasInput("IsProjectFinished")) $condition['IsProjectFinished'] = getInputValue("IsProjectFinished");
 			
-			$fieldstr = "a._Identify,ProjectEnabled,ProjectType,ProjectCode,ProjectName,";
+			$fieldstr = "a._Identify,ProjectEnabled,ProjectType,ProjectCode,ProjectName,a.BufferState,a.BufferType,IsProjectFinished,";
 			$fieldstr .= "createpathcode, pathname as createpathname,taskobjectcode,skccode,stylecode,orderqty,";
-			$fieldstr .= "InitStartDate,InitDueDate,TOCStartDate,TOCDueDate";
+			$fieldstr .= "InitStartDate,InitDueDate,TOCStartDate,TOCDueDate,SKCCode,OrderQty";
 
 			$rs = M("bproject as a","",getMyCon())
 			->join("inner join bpath as b on createpathcode=pathcode")
@@ -71,7 +72,7 @@ class WBProjectMngController extends \Think\Controller {
 			->select();
 			$projobj['projinfo'] = $projectinfo[0];
 			
-			$fieldstr = "projectcode,a.nodecode,nodename,nodename,nodetype,isnodeccr,isnodestatcs,";
+			$fieldstr = "a._identify,projectcode,a.nodecode,nodename,nodename,nodetype,isnodeccr,isnodestatcs,";
 			$fieldstr .= "statcsway,startcondition,belongdeptcode,";
 			$fieldstr .= "prevnodecode,nextnodecode,netproctime,buffertime,";
 			$fieldstr .= "accnetproctime,accbuffertime,stateupdatefreq,nodestate,nodeleadercode,usertruename as nodeleadername,";
@@ -85,11 +86,38 @@ class WBProjectMngController extends \Think\Controller {
 			->where($condition)
 			->select();	
 			
-			$projobj['nodelist'] = $nodelist;
+			for($i=0;$i<count($nodelist);$i++)
+			{
+				$nodelist[$i]['nodeusedbuffer']	=null;
+				$nodelist[$i]['accusedbuffer']	=null;
+
+				if($nodelist[$i]['nodestate']=='Finished' && $nodelist[$i]['nodeuseracturalstartdate'] && $nodelist[$i]['nodeuseracturalfinishdate'])
+				{
+					$nodelist[$i]['nodeusedbuffer'] = $nodelist[$i]['nodeuseracturalfinishdate']-$nodelist[$i]['nodeuseracturalstartdate'];
+					$nodelist[$i]['nodeusedbuffer'] -= $nodelist[$i]['netproctime'];
+				}
+
+				if($nodelist[$i]['nodestate']=='InProcess' && $nodelist[$i]['nodeuseracturalstartdate'] && $nodelist[$i]['nodeuseracturalfinishdate'])
+				{
+					$nodelist[$i]['nodeusedbuffer'] = $nodelist[$i]['nodeuserplanfinishdate']-$nodelist[$i]['nodeuseracturalstartdate'];
+					$nodelist[$i]['nodeusedbuffer'] -= $nodelist[$i]['netproctime'];
+				}				
+
+								
+				if($nodelist[$i]['nodestate']=='Finished' && $nodelist[$i]['nodeuseracturalfinishdate'])
+				{
+					$nodelist[$i]['accusedbuffer'] = $nodelist[$i]['nodeuseracturalfinishdate']-$nodelist[$i]['nodetenseplanfinishdate'];
+				}				
+					
+				if($nodelist[$i]['nodestate']=='InProcess' && $nodelist[$i]['nodeuserplanfinishdate'])
+				{
+					$nodelist[$i]['accusedbuffer'] = $nodelist[$i]['nodeuserplanfinishdate']-$nodelist[$i]['nodetenseplanfinishdate'];
+				}	
+							
+			}
 			
-//			dump($projobj);
-//			die();
-				
+			$projobj['nodelist'] = $nodelist;
+					
 			return $this -> ajaxReturn($projobj);
 		}
   	 
@@ -186,6 +214,148 @@ class WBProjectMngController extends \Think\Controller {
 		
 //		    echo M("vwprojectnode","",getMyCon())->_sql();
 			return $this -> ajaxReturn($rs);					
+		}	
+
+
+	  	/**
+	    * 更新项目的路径
+	    */
+		public function updateProjectPath(){
+			$condition['ProjectCode'] = getInputValue("ProjectCode","Prj1205S044");
+			
+			$projectinfo = M("bproject","",getMyCon())
+			->field("HeadNodeCode,InitDueDate")
+			->where($condition)
+			->select();	
+
+			if(!$projectinfo || count($projectinfo)<1) return;
+			
+			$projectinfo = $projectinfo[0];
+			
+			$dbm = M("bprojectnode","",getMyCon());
+			$nodelist = $dbm
+			->where($condition)
+			->select();	
+			
+			$curnode = null;
+			for($i=0;$i<count($nodelist);$i++)
+			{
+				if($nodelist[$i]['nodecode']==$projectinfo['headnodecode'])  $curnode=$nodelist[$i];	
+			}
+
+			$accnetproctime=0;
+			$accbuffertime=0;
+			$nodeorder=0;
+			$prevnodecode = null;
+			
+			$sortednodelist =[];
+			while($curnode)
+			{
+				#-----------------------
+				 $accnetproctime += (int)$curnode['netproctime'];
+				 $accbuffertime += (int)$curnode['buffertime'];
+				 
+				 #-----------------------
+				 $curnode['accnetproctime'] = $accnetproctime;
+				 $curnode['accbuffertime'] = $accbuffertime;
+				 $curnode['prevnodecode'] = $prevnodecode;
+				 $curnode['nodeorder'] = $nodeorder++;
+				 #-----------------------
+				 
+				$prevnodecode = $curnode['nodecode'];
+				$sortednodelist[] = $curnode;
+				
+				//find the next node
+				$nextnodecode = $curnode['nextnodecode'];
+				$curnode = null;
+				for($i=0;$i<count($nodelist);$i++)
+				{
+					if($nodelist[$i]['nodecode']==$nextnodecode)  $curnode=$nodelist[$i];	
+				}
+			}
+				
+				$Model = new \Think\Model("","",getMyCon());
+				
+				for($i=0;$i<count($sortednodelist);$i++)
+				{
+					$sortednodelist[$i]['nodetenseplanfinishdate']
+					 = date("Y-m-d",strtotime($projectinfo['initduedate'])+24*3600*(1-$accbuffertime-($accnetproctime-(int)$sortednodelist[$i]['accnetproctime'])));
+
+					 $sortednodelist[$i]['nodetenseplanstartdate'] 
+					 =date("Y-m-d",strtotime($sortednodelist[$i]['nodetenseplanfinishdate'])+24*3600*(1-$sortednodelist[$i]['netproctime']));
+
+					 $sortednodelist[$i]['nodeuserplanfinishdate'] = $sortednodelist[$i]['nodetenseplanfinishdate'];					 
+           			 $sortednodelist[$i]['nodeuseracturalfinishdate'] = null;
+           			 $sortednodelist[$i]['nodeuseracturalstartdate'] = null;
+					 
+					 $s = $sortednodelist[$i];
+					 
+					$sql = " Update bprojectnode set ";
+					$sql .= " AccNetProcTime =" . $s['accnetproctime'] . ",";
+					$sql .= " AccBufferTime =" . $s['accbuffertime'] . ",";
+					$sql .= " PrevNodeCode ='" . $s['prevnodecode'] . "',";
+					$sql .= " NodeOrder =" . $s['nodeorder'] . ",";
+					$sql .= " NodeTensePlanFinishDate ='" . $s['nodetenseplanfinishdate'] . "',";
+					$sql .= " NodeTensePlanStartDate ='" . $s['nodetenseplanstartdate'] . "',";
+					$sql .= " NodeUserPlanFinishDate ='" . $s['nodeuserplanfinishdate'] . "',";
+					$sql .= " NodeUserActuralFinishDate ='" . $s['nodeuseracturalfinishdate'] . "',";
+					$sql .= " NodeUserActuralStartDate ='" . $s['nodeuseracturalstartdate'] . "'";
+					$sql .= " where _Identify=" . $s['_identify'];
+					
+					$Model->execute($sql);
+				}
+
+				return $this -> ajaxReturn('OK');	
+		}
+	  	/**
+	    * 更新项目缓冲状态
+	    */
+		public function updateProjBufferState(){
+
+			$condition['ProjectCode'] = getInputValue("ProjectCode","Prj1205S004");
+			$condition['NodeState'] = 'InProcess';
+
+			$targetNode = M("bprojectnode","",getMyCon())
+			->where($condition)
+			->order("NodeOrder asc")
+			->select();	
+			
+			
+			if($targetNode && count($targetNode)>0)
+			{
+				$targetNode = $targetNode[0];
+				$accbuffertime = (int)$targetNode['accbuffertime'];
+				if($accbuffertime<1)
+				{
+					$bufferstate = 0;
+				}
+				else
+				{
+					$UserPlanFinishDate = date("Y-m-d",strtotime($targetNode['nodeuserplanfinishdate']));
+					$TensePlanFinishDate = date("Y-m-d",strtotime($targetNode['nodetenseplanfinishdate']));
+	
+					if($UserPlanFinishDate<date("Y-m-d",time())) 
+					{
+						$UserPlanFinishDate = date('Y-m-d', time()+1*24*3600);
+//						M("bprojectnode","",getMyCon())
+//					    ->where(array('ProjectCode'=>$targetNode['projectcode'],"NodeCode"=>$targetNode['nodecode']))
+//					    ->setField('NodeUserPlanFinishDate',$UserPlanFinishDate);	
+					}
+					
+					$d1 = strtotime($TensePlanFinishDate);
+					$d2 = strtotime($UserPlanFinishDate);
+					$days = round(($d2-$d1)/3600/24);
+
+					$bufferstate = 1.0*$days/$targetNode['accbuffertime'];
+					
+				}
+
+			    M("bproject","",getMyCon())
+			    ->where(array('ProjectCode'=>$targetNode['projectcode']))
+			    ->setField('BufferState',$bufferstate);			
+			}
+				
+			return $this -> ajaxReturn('OK');					
 		}	
 }
 ?>

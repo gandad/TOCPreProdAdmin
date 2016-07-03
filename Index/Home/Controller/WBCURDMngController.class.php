@@ -344,7 +344,7 @@ class WBCURDMngController extends \Think\Controller {
 	    if(stripos("insert|update|delete",$_POST['webix_operation'])===false)  return $this -> ajaxReturn("not permit");
 	  		  	
 	  	$tableName = "bprojectnode";
-		$attArray = array("ProjectCode","NodeCode","PrevNodeCode","NextNodeCode","NetProcTime","BufferTime",
+		$attArray = array("ProjectCode","NodeCode","NodeOrder","PrevNodeCode","NextNodeCode","NetProcTime","BufferTime",
 								"AccNetProcTime","AccBufferTime","StateUpdateFreq","NodeState",
 								"NodeLeaderCode","NodeTensePlanFinishDate","NodeUserPlanFinishDate",
 								"NodeUserActuralFinishDate","NodeTensePlanStartDate","NodeUserActuralStartDate");
